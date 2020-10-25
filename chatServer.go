@@ -1,10 +1,12 @@
 package main
 
 type WsServer struct {
+	// clients 连接wsServer的客户端
 	clients    map[*Client]bool
 	register   chan *Client
 	unregister chan *Client
-	broadcast  chan []byte
+	// broadcast 需要广播到客户端的数据
+	broadcast chan []byte
 }
 
 // NewWebsocketServer creates a new WsServer type

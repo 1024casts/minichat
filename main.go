@@ -6,7 +6,9 @@ import (
 	"net/http"
 )
 
-var addr = flag.String("addr", ":8080", "http server address")
+var (
+	addr = flag.String("addr", ":8080", "http server address")
+)
 
 func main() {
 	flag.Parse()

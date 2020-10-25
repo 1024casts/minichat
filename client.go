@@ -48,6 +48,24 @@ func newClient(conn *websocket.Conn, wsServer *WsServer) *Client {
 	}
 }
 
+// ServeWs handles websocket requests from clients requests.
+func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
+
+	// 从http升级为websocket协议，并返回websocket链接
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	client := newClient(conn, wsServer)
+
+	go client.readPump()
+	go client.writePump()
+
+	wsServer.register <- client
+}
+
 func (client *Client) readPump() {
 	defer func() {
 		client.disconnect()
@@ -116,21 +134,4 @@ func (client *Client) disconnect() {
 	client.wsServer.unregister <- client
 	close(client.send)
 	client.conn.Close()
-}
-
-// ServeWs handles websocket requests from clients requests.
-func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	client := newClient(conn, wsServer)
-
-	go client.writePump()
-	go client.readPump()
-
-	wsServer.register <- client
 }

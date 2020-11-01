@@ -6,6 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/1024casts/minichat/config"
+
+	"github.com/1024casts/minichat/models"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -54,6 +58,11 @@ func newClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
 		send:     make(chan []byte, 256),
 		rooms:    make(map[*Room]bool),
 	}
+}
+
+// Add the GetId method to make Client compatible with model.User interface
+func (client *Client) GetId() string {
+	return client.ID.String()
 }
 
 func (client *Client) GetName() string {
@@ -207,7 +216,7 @@ func (client *Client) handleLeaveRoomMessage(message Message) {
 // When joining a private room we will combine the IDs of the users
 // Then we will bothe join the client and the target.
 func (client *Client) handleJoinRoomPrivateMessage(message Message) {
-
+	// instead of searching for a client, search for User by the given ID.
 	target := client.wsServer.findClientByID(message.Message)
 	if target == nil {
 		return
@@ -216,15 +225,24 @@ func (client *Client) handleJoinRoomPrivateMessage(message Message) {
 	// create unique room name combined to the two IDs
 	roomName := message.Message + client.ID.String()
 
-	client.joinRoom(roomName, target)
-	target.joinRoom(roomName, client)
+	// Join room
+	joinedRoom := client.joinRoom(roomName, target)
 
+	//client.joinRoom(roomName, target)
+	//target.joinRoom(roomName, client)
+
+	// Instead of instantaneously joining the target client.
+	// Let the target client join with a invite request over pub/sub
+	if joinedRoom != nil {
+		client.inviteTargetUser(target, joinedRoom)
+	}
 }
 
-// New method
+// JoinRoom now returns a room or nil
 // Joining a room both for public and private roooms
 // When joiing a private room a sender is passed as the opposing party
-func (client *Client) joinRoom(roomName string, sender *Client) {
+// Change the type sender from Client to the User interface.
+func (client *Client) joinRoom(roomName string, sender models.User) *Room {
 
 	room := client.wsServer.findRoomByName(roomName)
 	if room == nil {
@@ -233,7 +251,7 @@ func (client *Client) joinRoom(roomName string, sender *Client) {
 
 	// Don't allow to join private rooms through public room message
 	if sender == nil && room.Private {
-		return
+		return nil
 	}
 
 	if !client.isInRoom(room) {
@@ -241,7 +259,21 @@ func (client *Client) joinRoom(roomName string, sender *Client) {
 		room.register <- client
 		client.notifyRoomJoined(room, sender)
 	}
+	return room
+}
 
+// Send out invite message over pub/sub in the general channel.
+func (client *Client) inviteTargetUser(target models.User, room *Room) {
+	inviteMessage := &Message{
+		Action:  JoinRoomPrivateAction,
+		Message: target.GetId(),
+		Target:  room,
+		Sender:  client,
+	}
+
+	if err := config.Redis.Publish(ctx, PubSubGeneralChannel, inviteMessage.encode()).Err(); err != nil {
+		log.Println(err)
+	}
 }
 
 // New method
@@ -255,7 +287,7 @@ func (client *Client) isInRoom(room *Room) bool {
 
 // New method
 // Notify the client of the new room he/she joined
-func (client *Client) notifyRoomJoined(room *Room, sender *Client) {
+func (client *Client) notifyRoomJoined(room *Room, sender models.User) {
 	message := Message{
 		Action: RoomJoinedAction,
 		Target: room,

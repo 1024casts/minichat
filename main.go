@@ -4,6 +4,10 @@ import (
 	"flag"
 	"log"
 	"net/http"
+
+	"github.com/1024casts/minichat/repository"
+
+	"github.com/1024casts/minichat/config"
 )
 
 var (
@@ -13,7 +17,12 @@ var (
 func main() {
 	flag.Parse()
 
-	wsServer := NewWebsocketServer()
+	db := config.InitDB()
+	defer db.Close()
+
+	config.CreateRedisClient()
+
+	wsServer := NewWebsocketServer(&repository.RoomRepository{Db: db}, &repository.UserRepository{Db: db})
 	go wsServer.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

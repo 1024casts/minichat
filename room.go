@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+
+	"github.com/1024casts/minichat/config"
 
 	"github.com/google/uuid"
 )
@@ -33,6 +37,9 @@ func NewRoom(name string, private bool) *Room {
 
 // RunRoom runs our room, accepting various requests
 func (room *Room) RunRoom() {
+	// subscribe to pub/sub messages inside a new goroutine
+	go room.subscribeToRoomMessages()
+
 	for {
 		select {
 
@@ -43,7 +50,8 @@ func (room *Room) RunRoom() {
 			room.unregisterClientInRoom(client)
 
 		case message := <-room.broadcast:
-			room.broadcastToClientsInRoom(message.encode())
+			//room.broadcastToClientsInRoom(message.encode())
+			room.publishRoomMessage(message.encode())
 		}
 	}
 }
@@ -54,6 +62,11 @@ func (room *Room) GetId() string {
 
 func (room *Room) GetName() string {
 	return room.Name
+}
+
+// Add the GetPrivate method to make Room compatible with model.Room interface
+func (room *Room) GetPrivate() bool {
+	return room.Private
 }
 
 func (room *Room) registerClientInRoom(client *Client) {
@@ -83,5 +96,26 @@ func (room *Room) notifyClientJoined(client *Client) {
 		Message: fmt.Sprintf(welcomeMessage, client.GetName()),
 	}
 
-	room.broadcastToClientsInRoom(message.encode())
+	//room.broadcastToClientsInRoom(message.encode())
+	room.publishRoomMessage(message.encode())
+}
+
+var ctx = context.Background()
+
+func (room *Room) publishRoomMessage(message []byte) {
+	err := config.Redis.Publish(ctx, room.GetName(), message).Err()
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (room *Room) subscribeToRoomMessages() {
+	pubsub := config.Redis.Subscribe(ctx, room.GetName())
+
+	ch := pubsub.Channel()
+
+	for msg := range ch {
+		room.broadcastToClientsInRoom([]byte(msg.Payload))
+	}
 }

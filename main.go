@@ -20,7 +20,7 @@ func main() {
 	db := config.InitDB()
 	defer db.Close()
 
-	config.CreateRedisClient()
+	config.InitRedis()
 
 	wsServer := NewWebsocketServer(&repository.RoomRepository{Db: db}, &repository.UserRepository{Db: db})
 	go wsServer.Run()

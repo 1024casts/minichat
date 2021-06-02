@@ -5,6 +5,23 @@ Go Chat Application
 ![image](https://user-images.githubusercontent.com/3043638/96879221-5a7df000-14ae-11eb-8351-9cd41aaeac49.png)
 
 
+## 如何运行
+
+```bash
+# 1. 编译
+go build
+
+# 2. 运行
+./minichat
+
+# 3. 打开聊天界面
+open http://localhost:8080/
+
+# 4. 开始体验聊天之旅
+```
+
+> 可以使用两个浏览器开启两个窗口进行测试
+
 ## Reference
 
 - https://dev.to/jeroendk/series/9071

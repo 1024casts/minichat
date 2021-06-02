@@ -7,14 +7,15 @@ import (
 	"github.com/1024casts/minichat/models"
 )
 
-const SendMessageAction = "send-message"
-const JoinRoomAction = "join-room"
-const LeaveRoomAction = "leave-room"
-const JoinRoomPrivateAction = "join-room-private"
-const RoomJoinedAction = "room-joined"
-
-const UserJoinedAction = "user-join"
-const UserLeftAction = "user-left"
+const (
+	SendMessageAction     = "send-message"
+	JoinRoomAction        = "join-room"
+	LeaveRoomAction       = "leave-room"
+	JoinRoomPrivateAction = "join-room-private"
+	RoomJoinedAction      = "room-joined"
+	UserJoinedAction      = "user-join"
+	UserLeftAction        = "user-left"
+)
 
 type Message struct {
 	Action  string      `json:"action"`
